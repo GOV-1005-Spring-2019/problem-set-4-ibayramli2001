@@ -9,18 +9,49 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r code}
+```{r}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+```
 
+```{r code}
+elections <- read_csv("ps_4_elections-poll-nc09-3.csv")
+
+dem_support_count <- filter(elections, response == "Dem") %>% 
+  count()
+
+diff_rep_und <- filter(elections,
+                       response %in% c("Rep", "Und")) %>%
+  group_by(response) %>%
+  summarize(n = n()) %>% 
+  summarize(diff = n[1] - n[2])
+
+gender_diff <- filter(elections, 
+                      gender != gender_combined) %>% 
+  nrow()
+
+white_ambig <- filter(elections, 
+                      race_eth == "White" & file_race_black != race_eth) %>%
+  nrow()
+
+time_diff <- elections %>% 
+  filter(response %in% c("Dem", "Rep")) %>%
+  select(response, timestamp) %>% 
+  group_by(response) %>%
+  summarize(first = minute(min(timestamp))) %>%
+  summarize(diff = first[2] - first[1])
 ```
 
 
-There were X respondents who supported the Democratic candidate.
+There were `r dem_support_count` respondents who supported the Democratic candidate.
 
-There were X more respondents who favored the Republican candidate than who were Undecided.
+There were `r diff_rep_und` more respondents who favored the Republican candidate than who were Undecided.
 
-There are two gender variables (gender and gender_combined). There are X individuals for whom these
+There are two gender variables (gender and gender_combined). There are `r gender_diff` individuals for whom these
 variables have different values.
 
-There are X respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
+There are `r white_ambig` respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
 
-The first response of Rep came X minutes (rounded to the nearest minute) before the first response of Dem.
+The first response of Rep came `r time_diff` minutes (rounded to the nearest minute) before the first response of Dem.
