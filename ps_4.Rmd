@@ -9,14 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r libs, echo=FALSE, message=FALSE, error=FALSE}
 library(tidyverse)
 library(dplyr)
 library(stringr)
 library(ggplot2)
+library(lubridate)
+library(devtools)
+library(gt)
 ```
 
-```{r code}
+```{r code, echo=FALSE, message=FALSE, error=FALSE}
 elections <- read_csv("ps_4_elections-poll-nc09-3.csv")
 
 dem_support_count <- filter(elections, response == "Dem") %>% 
@@ -42,6 +45,47 @@ time_diff <- elections %>%
   group_by(response) %>%
   summarize(first = minute(min(timestamp))) %>%
   summarize(diff = first[2] - first[1])
+```
+```{r}
+
+elections %>% 
+  
+  # I think it would be reasonable to not consider [DO NOT READ] ones since the respondents don't want to be considered in racial discussions
+  # and put percentages in terms of the remaining data
+  filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
+  select(race_eth, response, final_weight) %>%
+  group_by(race_eth, response)  %>%
+  summarize(total_weight = sum(final_weight)) %>%
+  spread(response, total_weight) %>% 
+  mutate(Und = replace(Und, is.na(Und), 0),
+         `3` = replace(`3`, is.na(`3`), 0),
+         Total = Dem + Rep + Und +`3`,
+         Dem = Dem/Total, 
+         Rep = Rep/Total, 
+         Und = Und/Total,
+         Total = Total*100)  %>%
+  ungroup() %>%
+  mutate( race_eth = factor(race_eth, 
+                 levels = c("White",
+                            "Black", 
+                            "Hispanic", 
+                            "Asian", 
+                            "Other"))) %>%
+  select(-`3`, -Total) %>%
+  arrange(factor(race_eth)) %>%  
+  gt() %>% 
+  tab_header(
+    title = "Polling Results from North Carolina’s 9th Congressional District") %>% 
+  
+  cols_label(
+    race_eth = "Race/Ethnicity",
+    Dem = "Democrats",
+    Rep = "Republicans",
+    Und = "Undecided"
+  ) %>%
+  
+  fmt_percent(columns = vars(Dem, Rep, Und), 
+              decimals = 0) 
 ```
 
 

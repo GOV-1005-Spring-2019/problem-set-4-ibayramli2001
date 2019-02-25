@@ -4,7 +4,6 @@ library(stringr)
 library(ggplot2)
 library(lubridate)
 library(devtools)
-install_github("rstudio/gt")
 library(gt)
 
 
@@ -33,7 +32,7 @@ time_diff <- elections %>%
   select(response, timestamp) %>% 
   group_by(response) %>%
   summarize(first = minute(min(timestamp))) %>%
-  summarize(diff = first[2] - first[1])
+  summarize(diff = first[2] - first[1]) sum
 
 # I noticed that in the table given to us, the percentages do not add up to 100% for White, Black, and Other. 
 # This sounds unreasonable given that the numbers represent proportions of race groups.
@@ -68,18 +67,41 @@ elections %>%
   mutate(Und = replace(Und, is.na(Und), 0),
          `3` = replace(`3`, is.na(`3`), 0),
          Total = Dem + Rep + Und +`3`,
-         Dem = round(100*Dem/Total, digits = 0), 
-         Rep = round(100*Rep/Total, digits = 0), 
-         Und = round(100*Und/Total, digits = 0),
+         Dem = Dem/Total, 
+         Rep = Rep/Total, 
+         Und = Und/Total,
          Total = Total*100)  %>%
-  arrange(factor(race_eth, 
+  ungroup() %>%
+  mutate( race_eth = factor(race_eth, 
                  levels = c("White",
                             "Black", 
                             "Hispanic", 
                             "Asian", 
-                            "Other")), 
-          race_eth) %>%
-  select(-`3`, -Total)
+                            "Other"))) %>%
+  select(-`3`, -Total) %>%
+  arrange(factor(race_eth)) %>%  
+  gt() %>% 
+  tab_header(
+    title = "Polling Results from North Carolina’s 9th Congressional District") %>% 
+  
+  cols_label(
+    race_eth = "Race/Ethnicity",
+    Dem = "Democrats",
+    Rep = "Republicans",
+    Und = "Undecided"
+  ) %>%
+  
+  fmt_percent(columns = vars(Dem, Rep, Und), 
+              decimals = 0
+              ) %>% 
+  
+  # This little pipe is that incantation to take this pretty table, turn it
+  # into html, and send it to the md file we are creating. Future versions of
+  # gt will probably have a better way of doing this. Indeed, does anyone know
+  # of one?
+  
+  as_raw_html() %>% as.character() %>% cat() 
+
   
   
 elections %>% 
@@ -111,7 +133,10 @@ elections %>%
   mutate(median_hms = (paste(median_hour, median_minute, median_second, sep = ":"))) %>%
 
   ggplot() +
-  geom_col(aes(ager, median_hms, fill = gender), position = "dodge2")
+  geom_col(aes(ager, median_hms, fill = gender), position = "dodge2") +
+  labs(title = "Median Response Time by Gender and Age") +
+  xlab("Age group") +
+  ylab("Median response time")
 
  
  
