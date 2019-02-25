@@ -1,0 +1,26 @@
+---
+title: "ps_4"
+author: "Ilkin Bayramli"
+date: "February 24, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r code}
+
+```
+
+
+There were X respondents who supported the Democratic candidate.
+
+There were X more respondents who favored the Republican candidate than who were Undecided.
+
+There are two gender variables (gender and gender_combined). There are X individuals for whom these
+variables have different values.
+
+There are X respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
+
+The first response of Rep came X minutes (rounded to the nearest minute) before the first response of Dem.
