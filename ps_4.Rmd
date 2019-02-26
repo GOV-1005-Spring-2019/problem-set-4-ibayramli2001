@@ -46,25 +46,63 @@ time_diff <- elections %>%
   summarize(first = minute(min(timestamp))) %>%
   summarize(diff = first[2] - first[1])
 ```
-```{r}
+```{r table, echo=FALSE, message=FALSE, error=FALSE}
+
+# I noticed that in the table given to us, the percentages do not add up to 100% for White, Black, and Other. 
+# This sounds unreasonable given that the numbers represent proportions of race groups.
+# There must be some White, Black, and Other people voting for parties other than Dem, Und, and Rep
+# This code determines the possible answers given during the survey. I have commented it because I don't want its results to be included in the html document.
+
+# elections %>% distinct(response)
+
+# This is to see if there are enough people voting for 3 to distort the dataset
+
+# elections %>% filter(response == "3") %>% nrow()
+
+# We get 18 which is can potentially distory our data given that it has only 495 rows. 
+# So, we will filter response == 3.
+
+# There are two columns recording race, so I analyzed them and cam to the conclusion that 
+# I should use the `file_race` because its numbers match those of the graph
+
+# elections %>% filter(response != "3") %>% group_by(race_eth) %>% summarize(n = n())
+
+# elections %>% filter(response != "3") %>% group_by(file_race) %>% summarize(n = n())
 
 elections %>% 
   
-  # I think it would be reasonable to not consider [DO NOT READ] ones since the respondents don't want to be considered in racial discussions
-  # and put percentages in terms of the remaining data
+  # I think it would be reasonable to not consider [DO NOT READ] ones since the respondents
+  # don't want to be considered in racial discussions and put percentages in terms of the remaining data
+  
   filter(race_eth != "[DO NOT READ] Don't know/Refused") %>% 
   select(race_eth, response, final_weight) %>%
   group_by(race_eth, response)  %>%
+  
+  # Not every person counts as one, so I summed final weights
+  
   summarize(total_weight = sum(final_weight)) %>%
   spread(response, total_weight) %>% 
+  
+  # R yelled at me because of NA variables, so I replaced them with 0 to be able to make calculations
+  
   mutate(Und = replace(Und, is.na(Und), 0),
          `3` = replace(`3`, is.na(`3`), 0),
+         
+         # I noticed that the graph's first column does not add up to 100%. 
+         # So, I suspected they have counted vaters of `3` as well. 
+         
          Total = Dem + Rep + Und +`3`,
          Dem = Dem/Total, 
          Rep = Rep/Total, 
          Und = Und/Total,
          Total = Total*100)  %>%
+  
+  # Without ungrouping the table was weird.
+  
   ungroup() %>%
+  
+  # This is to get the order of y axis elements right
+  
   mutate( race_eth = factor(race_eth, 
                  levels = c("White",
                             "Black", 
@@ -85,7 +123,79 @@ elections %>%
   ) %>%
   
   fmt_percent(columns = vars(Dem, Rep, Und), 
-              decimals = 0) 
+              decimals = 0
+              ) 
+```
+
+```{r independent, echo=FALSE, message=FALSE, error=FALSE}
+elections %>% 
+  filter(educ != "[DO NOT READ] Refused") %>%
+  
+  ggplot(aes(factor(educ, levels = c("Grade school",
+                                     "High school",
+                                     "Some college or trade school",
+                                     "Bachelors' degree",
+                                     "Graduate or Professional Degree")), final_weight)) +
+  geom_violin() +
+  geom_jitter(alpha = 0.3) +
+  coord_flip() +
+  ylab("Weight Given to Respondent in Calculating Poll Results") +
+  xlab("") + 
+  labs(title = "More Educated Matter Less in North Carolina 9th", 
+       subtitle = "Poll gives more weight to people who are less likely to participate in polls",
+       caption = "New York Times Upshot/Siena College 2018 live polls")
+
+  
+elections %>%
+  
+  # As always, we do not include refused people in the survey
+  
+  filter( ager != "[DO NOT READ] Refused") %>%
+  select(ager, timestamp, gender) %>%
+  mutate(timestamp = as.character(timestamp)) %>%
+  
+  # This whole part was written because apparently lubridate lacked a function that would extract hour, minutes, seconds
+  # from a datettime obj. (If there is one, please let me know). I had to manually parse them into hour, minute, second, 
+  # find their median, and then parse them back into a string and pass to my geom object. 
+  
+  # I decided to use median because I thought it would be weight to find mean of response time. I think a median is a 
+  # good representative of how an average person acts. Also, mean would produce decimal values that would be hard to deal with (e.g. 20.45 hours)
+  
+  separate(timestamp, 
+           into = c("ymd", "hms"),
+           sep = " ", remove = TRUE) %>%
+  mutate(ymd = ymd(ymd), 
+         hms = hms(hms),
+         hour = hour(hms),
+         minute = minute(hms),
+         second = second(hms)) %>%
+  group_by(ager,
+           gender) %>% 
+  summarize(median_ymd = median(ymd),
+            median_hour = median(hour), 
+            median_minute = median(minute), 
+            median_second = median(second)) %>%
+  
+  # I kept getting weird results like "20.5:24.5:34", so I decided to round them a little bit. 
+  # 20.5:24.5:34 for example would be transformed into 21:55:34, which is very accurate
+  
+  mutate(median_hms = ifelse((median_hour - round(median_hour, 0)) != 0,  
+                                      paste(
+                                        round(median_hour, 0) + 1, 
+                                       round(median_minute + 30, 0), 
+                                       round(median_second,0), sep = ":"),
+                                      paste(median_hour, 
+                                       round(median_minute, 0), 
+                                       median_second, sep = ":"))) %>%
+  
+  # I decided to use a bar graph since it represents averages very well.
+  # It is also easy to make variable separations ( e.g. gender) on the bar chart
+
+  ggplot() +
+  geom_col(aes(ager, median_hms, fill = gender), position = "dodge2") +
+  labs(title = "Median Response Time by Gender and Age") +
+  xlab("Age group") +
+  ylab("Median response time")
 ```
 
 
@@ -99,3 +209,5 @@ variables have different values.
 There are `r white_ambig` respondents listed as “White” under race_eth who are not listed as “White” under file_race_black.
 
 The first response of Rep came `r time_diff` minutes (rounded to the nearest minute) before the first response of Dem.
+
+
